@@ -1,0 +1,69 @@
+import streamlit as st
+import google.generativeai as genai
+import os
+import json
+from PIL import Image
+
+# 1. SETUP AI
+api_key = os.environ['GOOGLE_API_KEY']
+genai.configure(api_key=api_key)
+model = genai.GenerativeModel('gemini-1.5-flash')
+
+# 2. DATABASE FUNCTIONS (The "Memory")
+def load_games():
+    try:
+        with open('games_db.json', 'r') as f:
+            return json.load(f)
+    except:
+        return []
+
+def save_game(new_game_data):
+    db = load_games()
+    db.append(new_game_data)
+    with open('games_db.json', 'w') as f:
+        json.dump(db, f, indent=2)
+
+# 3. APP INTERFACE
+st.set_page_config(page_title="ScrivShady Coach", page_icon="♟️")
+st.title("♟️ ScrivShady Production Coach")
+
+# Sidebar Settings
+st.sidebar.title("Coach Settings")
+show_habits = st.sidebar.toggle("Match Historical Habits", value=True)
+coach_mode = st.sidebar.select_slider("Voice", options=["Standard", "Legendary"])
+
+# 4. ANALYSIS LOGIC
+uploaded_file = st.file_uploader("Upload Screenshot", type=["jpg", "png", "jpeg"])
+pgn_text = st.text_area("OR Paste PGN text:")
+
+if st.button("GET COACH ADVICE"):
+    with st.spinner("Consulting Database & Analyzing..."):
+        past_games = load_games()
+        
+        # We send your past games to the AI so it knows your history!
+        instruction = f"""
+        You are the ScrivShady Coach. 
+        Historical Context: {json.dumps(past_games)}
+        
+        Analyze the new game provided. Provide:
+        1. New Game ID (G{len(past_games) + 1})
+        2. Theme Name
+        3. Accuracy (Open/Middle/End)
+        4. Habit Match (Did they repeat or fix a past mistake?)
+        5. Top 3 Tips.
+        """
+        
+        if uploaded_file:
+            img = Image.open(uploaded_file)
+            response = model.generate_content([instruction, img])
+        else:
+            response = model.generate_content(instruction + pgn_text)
+            
+        st.markdown(response.text)
+        
+        # Optional: In a real app, we'd extract the stats here to save them.
+        st.success(f"Game G{len(past_games) + 1} analyzed and logged!")
+
+# Show the Database
+if st.sidebar.button("View Database"):
+    st.sidebar.write(load_games())

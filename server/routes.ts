@@ -37,15 +37,26 @@ export async function registerRoutes(
     try {
       const input = api.analyses.create.input.parse(req.body);
       
+      // Fetch past analyses for historical context
+      const pastAnalyses = await storage.getAnalyses();
+      const historicalContext = pastAnalyses.map(a => ({
+        id: a.id,
+        theme: a.preferences, // We don't have a structured "theme" field yet, but we can pass previous results
+        result: a.resultText.substring(0, 500) // Truncate to avoid token limits
+      }));
+
       const instruction = `
-        Analyze this chess game for the player '${input.playerName}'. 
+        You are the ScrivShady Coach. 
+        Historical Context (Past Games): ${JSON.stringify(historicalContext)}
+        
+        Analyze the new game provided for the player '${input.playerName}'. 
         Preferences: Accuracy=${input.preferences.showAccuracy}, Habits=${input.preferences.showHabits}, Voice=${input.preferences.voice}.
         
-        Focus on:
-        1. Theme Name.
-        2. Accuracy (Opening/Middle/End).
-        3. Positive Habits.
-        4. Negative Habits (check for f-pawn pushes or hanging queens).
+        Provide:
+        1. New Game ID (G${pastAnalyses.length + 1})
+        2. Theme Name
+        3. Accuracy (Opening/Middle/End)
+        4. Habit Match (Did they repeat or fix a past mistake based on the Historical Context?)
         5. Top 3 Tips for the future.
       `;
 
