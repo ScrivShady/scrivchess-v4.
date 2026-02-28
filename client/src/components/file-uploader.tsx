@@ -12,11 +12,16 @@ export function FileUploader({ value, onChange }: FileUploaderProps) {
   const [isDragging, setIsDragging] = useState(false);
 
   const handleFile = (file: File) => {
+    // Basic validation for image type
     if (!file.type.startsWith('image/')) return;
     
     const reader = new FileReader();
     reader.onloadend = () => {
-      onChange(reader.result as string);
+      const base64String = reader.result as string;
+      onChange(base64String);
+    };
+    reader.onerror = () => {
+      console.error("FileReader error");
     };
     reader.readAsDataURL(file);
   };
@@ -29,6 +34,12 @@ export function FileUploader({ value, onChange }: FileUploaderProps) {
     }
   };
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      handleFile(e.target.files[0]);
+    }
+  };
+
   if (value) {
     return (
       <div className="relative rounded-xl overflow-hidden border-2 border-border group bg-muted/20 flex items-center justify-center min-h-[300px]">
@@ -37,7 +48,11 @@ export function FileUploader({ value, onChange }: FileUploaderProps) {
           <Button 
             variant="destructive" 
             size="sm" 
-            onClick={() => onChange(undefined)}
+            onClick={(e) => {
+              e.stopPropagation();
+              onChange(undefined);
+              if (inputRef.current) inputRef.current.value = '';
+            }}
             className="flex items-center gap-2"
           >
             <X className="w-4 h-4" /> Remove Image
@@ -64,7 +79,7 @@ export function FileUploader({ value, onChange }: FileUploaderProps) {
         className="hidden" 
         ref={inputRef}
         accept="image/jpeg,image/png,image/jpg"
-        onChange={(e) => e.target.files?.[0] && handleFile(e.target.files[0])}
+        onChange={handleInputChange}
       />
       
       <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center mb-4 text-muted-foreground shadow-inner">

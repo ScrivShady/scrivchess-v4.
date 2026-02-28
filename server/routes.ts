@@ -50,14 +50,24 @@ export async function registerRoutes(
         Historical Context (Past Games): ${JSON.stringify(historicalContext)}
         
         Analyze the new game provided for the player '${input.playerName}'. 
-        Preferences: Accuracy=${input.preferences.showAccuracy}, Habits=${input.preferences.showHabits}, Voice=${input.preferences.voice}.
+        Preferences: Accuracy=${input.preferences.showAccuracy}, Habits=${input.preferences.showHabits}, Voice=${input.preferences.voice}, Style=${input.preferences.analysisDepth}.
         
-        Provide:
+        ${input.preferences.analysisDepth === "In-Depth" ? 
+          `Provide an exhaustive, move-by-move technical breakdown. Focus on high-level strategy, alternative lines, and deep engine evaluations. 
+           Include specific evaluation scores (e.g., +1.2, -0.5) for critical moments.` :
+          `Provide a high-impact, visual-style summary. 
+           Format specifically with these sections:
+           - Stage Accuracy Table: Create a markdown table with columns: Stage (Opening, Middle, Endgame, WHOLE GAME), Accuracy (%), and Performance Summary (short qualitative labels like Elite, Lethal, Perfect, Master Level).
+           - Positive (+) Attacks & Habits: Bullet points with specific move notations and descriptions of why they were good.
+           - Negative (-) Weaknesses & Oversights: Bullet points covering blunders, missed checks, or positional errors with "The Oversight" and "The Consequence" details.
+           - Active Challenges: 3 specific goals for next games (e.g., "Castle by move 10", "Keep your queen until the end", "No more than two pawns in opening").`
+        }
+
+        Always conclude with:
         1. New Game ID (G${pastAnalyses.length + 1})
         2. Theme Name
-        3. Accuracy (Opening/Middle/End)
-        4. Habit Match (Did they repeat or fix a past mistake based on the Historical Context?)
-        5. Top 3 Tips for the future.
+        3. Habit Match (Did they repeat or fix a past mistake based on the Historical Context?)
+        4. Top 3 Tips for the future.
       `;
 
       let resultText = "";

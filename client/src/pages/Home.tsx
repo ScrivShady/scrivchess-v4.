@@ -38,6 +38,7 @@ export default function Home() {
   const [showAccuracy, setShowAccuracy] = useState(true);
   const [showHabits, setShowHabits] = useState(true);
   const [voice, setVoice] = useState<"Standard" | "Legendary">("Standard");
+  const [analysisDepth, setAnalysisDepth] = useState<"Standard" | "In-Depth">("Standard");
   const [playerName, setPlayerName] = useState("ScrivShady");
 
   // Input State
@@ -69,7 +70,8 @@ export default function Home() {
       preferences: {
         showAccuracy,
         showHabits,
-        voice
+        voice,
+        analysisDepth
       },
       image: activeTab === "image" ? image : undefined,
       pgnText: activeTab === "pgn" ? pgnText : undefined,
@@ -115,6 +117,23 @@ export default function Home() {
                     <Label htmlFor="habits" className="text-sm font-medium">Match Historical Habits</Label>
                     <Switch id="habits" checked={showHabits} onCheckedChange={setShowHabits} />
                   </div>
+                </div>
+
+                <div className="space-y-3">
+                  <Label className="text-sm font-medium">Analysis Style</Label>
+                  <Select value={analysisDepth} onValueChange={(val: any) => setAnalysisDepth(val)}>
+                    <SelectTrigger className="w-full bg-background border-border">
+                      <SelectValue placeholder="Select style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="Standard">
+                        Standard (Visual Summary)
+                      </SelectItem>
+                      <SelectItem value="In-Depth">
+                        In-Depth (Technical Review)
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="space-y-3">

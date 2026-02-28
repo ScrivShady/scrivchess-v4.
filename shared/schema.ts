@@ -7,7 +7,7 @@ export const analyses = pgTable("analyses", {
   playerName: text("player_name").notNull().default("ScrivShady"),
   pgnText: text("pgn_text"),
   imageUrl: text("image_url"), // base64 string or url
-  preferences: json("preferences").notNull(), // { showAccuracy: boolean, showHabits: boolean, voice: string }
+  preferences: json("preferences").notNull(), // { showAccuracy: boolean, showHabits: boolean, voice: string, analysisDepth: "Standard" | "In-Depth" }
   resultText: text("result_text").notNull(),
   createdAt: timestamp("created_at").defaultNow(),
 });
@@ -24,6 +24,7 @@ export const analyzeRequestSchema = z.object({
     showAccuracy: z.boolean().default(true),
     showHabits: z.boolean().default(true),
     voice: z.enum(["Standard", "Legendary"]).default("Standard"),
+    analysisDepth: z.enum(["Standard", "In-Depth"]).default("Standard"),
   }),
   pgnText: z.string().optional(),
   image: z.string().optional(), // base64 data url
