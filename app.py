@@ -33,7 +33,15 @@ def render_board(board):
     b64 = base64.b64encode(svg.encode('utf-8')).decode('utf-8')
     return f'<center><img src="data:image/svg+xml;base64,{b64}" /></center>'
 
-# --- 4. TABS ---
+# --- 4. SIDEBAR & REFERENCE LINK ---
+st.sidebar.title("♟️ ScrivArchive")
+# Month filter and Color Filter here as before
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔗 Project References")
+# This is your link to the Replit site for reference
+st.sidebar.link_button("🌐 Old Replit Site (v5.0 Ref)", "https://chess-coach-advice--lukescriven246.replit.app/")
+
+# --- 5. MAIN TABS ---
 tab1, tab2, tab3 = st.tabs(["🎯 Film Room Coach", "💬 ScrivAssistant", "📊 Stats"])
 
 with tab1:
@@ -43,7 +51,7 @@ with tab1:
     if st.button("🚀 ANALYZE GAME"):
         st.session_state.move_index = 0
         with st.spinner("Analyzing with ScrivShady 3.0 Logic..."):
-            prompt = "You are the ScrivShady Coach. 80% direct patterns, 20% Fischer/Morphy. Analyze for: 1. Creative Title (5 words max), 2. Accuracy Table, 3. Tactical Vision (Pins/Skewers/Mates), 4. Missed Opportunities (Max 2), 5. Habit Match, 6. Legend Challenge."
+            prompt = "You are the ScrivShady Coach. 80% direct patterns, 20% Fischer/Morphy. Analyze for: 1. Creative Title (5 words max), 2. Accuracy Table, 3. Tactical Vision (Pins/Skewers/Mates), 4. Missed Opportunities, 5. Habit Match, 6. Legend Challenge."
             response = model.generate_content(prompt + pgn_input)
             st.markdown(response.text)
             st.session_state.current_pgn = pgn_input
@@ -78,4 +86,4 @@ with tab2:
 
 with tab3:
     st.header("Visual History")
-    # History logic pulls from Google Sheets
+    # Pull stats from Google Sheets logic
