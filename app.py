@@ -259,7 +259,11 @@ with tab1:
             sf = fetch_stockfish_eval(fen)
             best_move_uci = None
             if sf:
-                best_move_uci = sf.get("bestmove", "").split()[0] if sf.get("bestmove") else None
+                raw_best = sf.get("bestmove", "")
+                if raw_best:
+                    # The API may return "bestmove e2e4 ponder d7d5" or just "e2e4"
+                    parts = raw_best.replace("bestmove", "").strip().split()
+                    best_move_uci = parts[0] if parts else None
                 if sf.get("mate") is not None:
                     st.markdown(f'<p class="eval-bar">Stockfish: Mate in {sf["mate"]}  ·  Best: <code>{sf.get("bestmove", "")}</code></p>', unsafe_allow_html=True)
                 elif sf.get("eval") is not None:
