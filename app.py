@@ -8,32 +8,81 @@ import chess.svg
 import io
 import base64
 import requests
-from PIL import Image
-from datetime import datetime
 
-# --- 1. BRANDING & UI ---
-st.set_page_config(page_title="ScrivChess v6.3", page_icon="♟️", layout="wide")
+# --- 1. UI CONFIG ---
+st.set_page_config(page_title="ScrivChess v6.5", layout="wide")
 
 st.markdown("""
     <style>
     .stApp { background-color: #121212; color: #D4AF37; }
-    [data-testid="stMetricValue"] { color: #D4AF37 !important; }
     .stSidebar { background-color: #1c1c1c !important; border-right: 1px solid #D4AF37; }
-    .stButton>button { 
-        border: 1px solid #D4AF37; 
-        background-color: #121212; 
-        color: #D4AF37; 
-        width: 100%;
-        font-weight: bold;
-    }
-    .stButton>button:hover { background-color: #D4AF37; color: #121212; }
     </style>
     """, unsafe_allow_html=True)
 
-# --- 2. HELPERS ---
-def render_board(board):
-    last_move = board.peek() if board.move_stack else None
-    svg = chess.svg.board(board, size=400, lastmove=last_move)
+# --- 2. FETCH ALL HISTORY LOGIC ---
+def fetch_all_history(username):
+    headers = {'User-Agent': 'ScrivChess-App'}
+    all_games = []
+    try:
+        res = requests.get(f"https://api.chess.com/pub/player/{username}/games/archives", headers=headers)
+        if res.status_code == 200:
+            urls = res.json().get('archives', [])
+            for url in urls: # This loops through every month in your history
+                month_data = requests.get(url, headers=headers).json()
+                for game in month_data.get('games', []):
+                    if 'pgn' in game:
+                        all_games.append(game['pgn'])
+            return all_games[::-1] # Reverse so newest is first
+    except: return []
+    return []
+
+# --- 3. SIDEBAR NAVIGATION ---
+with st.sidebar:
+    st.title("♟️ ScrivChess Master")
+    user = st.text_input("Chess.com User", "ScrivShady")
+    
+    if st.button("📥 FETCH FULL HISTORY"):
+        with st.spinner("Retrieving your legacy..."):
+            st.session_state.history = fetch_all_history(user)
+    
+    if 'history' in st.session_state:
+        st.write(f"Games Found: {len(st.session_state.history)}")
+        game_idx = st.selectbox("Select Game", range(len(st.session_state.history)), 
+                                format_func=lambda x: f"Game {len(st.session_state.history)-x}")
+        if st.button("🔌 LOAD TO FILM ROOM"):
+            st.session_state.current_pgn = st.session_state.history[game_idx]
+            st.session_state.analysis_text = ""
+
+    st.markdown("---")
+    mode = st.radio("Go to:", ["🎯 Film Room", "📊 Stats"])
+
+# --- 4. PAGES ---
+if mode == "🎯 Film Room":
+    st.title("🎯 Film Room Coach")
+    if 'current_pgn' in st.session_state:
+        if st.button("🚀 RUN DEEP ANALYSIS"):
+            with st.spinner("Analyzing..."):
+                genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+                # FIXED MODEL NAME TO AVOID 404
+                model = genai.GenerativeModel('gemini-1.5-flash')
+                response = model.generate_content(f"Analyze this chess game for ScrivShady: {st.session_state.current_pgn}")
+                st.session_state.analysis_text = response.text
+        
+        if st.session_state.analysis_text:
+            st.markdown(st.session_state.analysis_text)
+            
+        # Board rendering logic would follow here...
+    else:
+        st.info("Fetch history in the sidebar to start.")
+
+elif mode == "📊 Stats":
+    st.title("📊 Visual History")
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        df = conn.read(spreadsheet=st.secrets["GSHEET_URL"])
+        st.line_chart(df)
+    except:
+        st.warning("Please finish the Google Cloud Service Account setup to see stats.")
     b64 = base64.b64encode(svg.encode('utf-8')).decode('utf-8')
     return f'<center><img src="data:image/svg+xml;base64,{b64}" /></center>'
 
