@@ -12,12 +12,13 @@ from PIL import Image
 from datetime import datetime
 
 # --- 1. BRANDING & UI ---
-st.set_page_config(page_title="ScrivChess v6.2", page_icon="♟️", layout="wide")
+st.set_page_config(page_title="ScrivChess v6.3", page_icon="♟️", layout="wide")
 
 st.markdown("""
     <style>
     .stApp { background-color: #121212; color: #D4AF37; }
     [data-testid="stMetricValue"] { color: #D4AF37 !important; }
+    .stSidebar { background-color: #1c1c1c !important; border-right: 1px solid #D4AF37; }
     .stButton>button { 
         border: 1px solid #D4AF37; 
         background-color: #121212; 
@@ -25,14 +26,7 @@ st.markdown("""
         width: 100%;
         font-weight: bold;
     }
-    .stButton>button:hover {
-        background-color: #D4AF37;
-        color: #121212;
-    }
-    .stTextArea textarea {
-        background-color: #1c1c1c;
-        color: #D4AF37;
-    }
+    .stButton>button:hover { background-color: #D4AF37; color: #121212; }
     </style>
     """, unsafe_allow_html=True)
 
@@ -61,56 +55,54 @@ if 'move_index' not in st.session_state: st.session_state.move_index = 0
 if 'current_pgn' not in st.session_state: st.session_state.current_pgn = ""
 if 'analysis_text' not in st.session_state: st.session_state.analysis_text = ""
 
-# --- 4. TABS ---
-tab1, tab2, tab3 = st.tabs(["🎯 Film Room Coach", "💬 ScrivAssistant", "📊 Stats"])
+# --- 4. SIDEBAR NAVIGATION ---
+with st.sidebar:
+    st.title("♟️ ScrivChess")
+    st.subheader("Master Menu")
+    page = st.radio("Navigate", ["🎯 Film Room", "💬 ScrivAssistant", "📊 Stats"])
+    st.markdown("---")
+    if st.button("🔄 SYNC CHESS.COM"):
+        pgn = fetch_latest_game()
+        if pgn:
+            st.session_state.current_pgn = pgn
+            st.session_state.move_index = 0
+            st.success("Latest game fetched!")
+        else:
+            st.warning("No recent games found.")
 
-with tab1:
-    st.title("ScrivChess v6.2")
+# --- 5. MAIN PAGES ---
+if page == "🎯 Film Room":
+    st.title("🎯 Film Room Coach")
     
-    pgn_input = st.text_area("Paste PGN here or use Sync", height=100)
+    pgn_input = st.text_area("Paste PGN here (if not synced)", height=100)
     
-    col_sync, col_analyze = st.columns(2)
-    
-    with col_sync:
-        if st.button("🔄 SYNC CHESS.COM"):
-            pgn = fetch_latest_game()
-            if pgn:
-                st.session_state.current_pgn = pgn
-                st.success("Fetched latest game!")
-            else:
-                st.warning("No recent games found.")
-
-    with col_analyze:
-        if st.button("🚀 RUN DEEP ANALYSIS"):
-            final_pgn = pgn_input if pgn_input else st.session_state.current_pgn
-            if final_pgn:
-                st.session_state.current_pgn = final_pgn
-                st.session_state.move_index = 0
+    if st.button("🚀 RUN DEEP ANALYSIS"):
+        final_pgn = pgn_input if pgn_input else st.session_state.current_pgn
+        if final_pgn:
+            st.session_state.current_pgn = final_pgn
+            if "GOOGLE_API_KEY" in st.secrets:
+                genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+                # FIXED: Using gemini-1.5-flash-latest to avoid 404 errors
+                model = genai.GenerativeModel('gemini-1.5-flash-latest')
                 
-                if "GOOGLE_API_KEY" in st.secrets:
-                    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-                    model = genai.GenerativeModel('gemini-1.5-flash')
-                    
-                    with st.spinner("Studying the tape..."):
-                        prompt = """
-                        You are the ScrivShady Coach. 
-                        Tone: 80% direct/pattern coach, 20% Fischer/Morphy principles.
-                        User: ScrivShady (Bottom player).
-                        
-                        1. Creative Title (5 words max)
-                        2. Accuracy Table (Open/Mid/End %)
-                        3. Tactical Vision (Missed PINS, SKEWERS, MATES - Max 2 each)
-                        4. Missed Opportunities (Max 2)
-                        5. Habit Match (Refer G1-G28 IDs)
-                        6. Legend Challenge
-                        """
-                        try:
-                            response = model.generate_content(prompt + final_pgn)
-                            st.session_state.analysis_text = response.text
-                        except Exception as e:
-                            st.error(f"AI Error: {e}")
-                else:
-                    st.error("API Key missing in Secrets!")
+                with st.spinner("Coach is studying the tape..."):
+                    prompt = """
+                    You are the ScrivShady Coach. 
+                    Tone: 80% direct/pattern coach, 20% Fischer/Morphy principles.
+                    User: ScrivShady (Bottom player).
+                    1. Creative Title (5 words max)
+                    2. Accuracy Table (Open/Mid/End %)
+                    3. Tactical Vision (Missed PINS, SKEWERS, MATES - Max 2 each)
+                    4. Missed Opportunities (Max 2)
+                    5. Legend Challenge
+                    """
+                    try:
+                        response = model.generate_content(f"{prompt}\n\nGAME PGN:\n{final_pgn}")
+                        st.session_state.analysis_text = response.text
+                    except Exception as e:
+                        st.error(f"AI Error: {e}")
+            else:
+                st.error("API Key missing in Secrets!")
 
     if st.session_state.analysis_text:
         st.markdown(st.session_state.analysis_text)
@@ -137,21 +129,24 @@ with tab1:
                     st.session_state.move_index += 1
                     st.rerun()
 
-with tab2:
-    st.header("ScrivAssistant")
-    q = st.text_input("Ask a question about the game:")
-    if q and st.session_state.current_pgn:
-        genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
-        model = genai.GenerativeModel('gemini-1.5-flash')
-        res = model.generate_content(f"Game: {st.session_state.current_pgn}. Question: {q}")
-        st.write(res.text)
+elif page == "💬 ScrivAssistant":
+    st.header("💬 ScrivAssistant")
+    if not st.session_state.current_pgn:
+        st.info("Sync or paste a game in the Film Room first.")
+    else:
+        q = st.text_input("Ask a question about the current game:")
+        if q:
+            genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+            model = genai.GenerativeModel('gemini-1.5-flash-latest')
+            res = model.generate_content(f"Game: {st.session_state.current_pgn}. Question: {q}")
+            st.write(res.text)
 
-with tab3:
-    st.header("Visual History")
+elif page == "📊 Stats":
+    st.header("📊 Visual History")
     try:
         conn = st.connection("gsheets", type=GSheetsConnection)
         df = conn.read(spreadsheet=st.secrets["GSHEET_URL"], worksheet="Sheet1")
         if not df.empty:
             st.line_chart(df['Accuracy'], color="#D4AF37")
     except:
-        st.info("Play and analyze games to populate stats.")
+        st.info("Connect your Google Sheet in Secrets to see historical data.")
