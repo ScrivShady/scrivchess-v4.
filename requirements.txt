@@ -1,0 +1,8 @@
+streamlit
+google-generativeai
+pandas
+st-gsheets-connection
+python-chess
+chess
+requests
+Pillow
