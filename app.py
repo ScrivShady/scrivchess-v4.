@@ -1,39 +1,7 @@
 import streamlit as st
 import google.generativeai as genai
 import pandas as pd
-from streamlit_gsheets import GSheetsConnection
-import chess
-import chess.pgn
-import chess.svg
-import io
-import base64
-import requests
-
-# --- 1. UI CONFIG ---
-st.set_page_config(page_title="ScrivChess v6.5", layout="wide")
-
-st.markdown("""
-    <style>
-    .stApp { background-color: #121212; color: #D4AF37; }
-    .stSidebar { background-color: #1c1c1c !important; border-right: 1px solid #D4AF37; }
-    </style>
-    """, unsafe_allow_html=True)
-
-# --- 2. FETCH ALL HISTORY LOGIC ---
-def fetch_all_history(username):
-    headers = {'User-Agent': 'ScrivChess-App'}
-    all_games = []
-    try:
-        res = requests.get(f"https://api.chess.com/pub/player/{username}/games/archives", headers=headers)
-        if res.status_code == 200:
-            urls = res.json().get('archives', [])
-            for url in urls: # This loops through every month in your history
-                month_data = requests.get(url, headers=headers).json()
-                for game in month_data.get('games', []):
-                    if 'pgn' in game:
-                        all_games.append(game['pgn'])
-            return all_games[::-1] # Reverse so newest is first
-    except: return []
+from streamlit_gsheets import G
     return []
 
 # --- 3. SIDEBAR NAVIGATION ---
