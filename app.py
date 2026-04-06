@@ -9,7 +9,7 @@ import io
 import base64
 import requests
 
-# --- 1. CONFIG & STYLE ---
+# --- 1. UI CONFIGURATION ---
 st.set_page_config(page_title="ScrivChess v6.5", layout="wide", page_icon="♟️")
 
 st.markdown("""
@@ -34,6 +34,97 @@ def fetch_all_history(username):
     try:
         res = requests.get(f"https://api.chess.com/pub/player/{username}/games/archives", headers=headers)
         if res.status_code == 200:
+            urls = res.json().get('archives', [])
+            # Grabs the last 6 months of games
+            for url in urls[-6:]: 
+                month_data = requests.get(url, headers=headers).json()
+                for game in month_data.get('games', []):
+                    if 'pgn' in game:
+                        all_pgns.append(game['pgn'])
+            return all_pgns[::-1] # Show newest games first
+    except:
+        return []
+    return []
+
+# --- 3. SESSION INITIALIZATION ---
+if 'history' not in st.session_state: st.session_state.history = []
+if 'current_pgn' not in st.session_state: st.session_state.current_pgn = ""
+if 'move_index' not in st.session_state: st.session_state.move_index = 0
+if 'analysis' not in st.session_state: st.session_state.analysis = ""
+
+# --- 4. SIDEBAR NAVIGATION ---
+with st.sidebar:
+    st.title("♟️ ScrivChess Master")
+    user = st.text_input("Chess.com User", "ScrivShady")
+    
+    if st.button("📥 FETCH FULL HISTORY"):
+        with st.spinner("Accessing archives..."):
+            st.session_state.history = fetch_all_history(user)
+            st.success(f"Found {len(st.session_state.history)} games!")
+
+    if st.session_state.history:
+        total = len(st.session_state.history)
+        idx = st.selectbox("Select Game", range(total), format_func=lambda x: f"Game {total-x}")
+        if st.button("🔌 LOAD TO FILM ROOM"):
+            st.session_state.current_pgn = st.session_state.history[idx]
+            st.session_state.move_index = 0
+            st.session_state.analysis = ""
+            st.rerun()
+
+    st.markdown("---")
+    page = st.radio("Navigation", ["🎯 Film Room", "📊 Stats"])
+
+# --- 5. PAGE LOGIC ---
+if page == "🎯 Film Room":
+    st.title("🎯 Film Room")
+    if st.session_state.current_pgn:
+        if st.button("🚀 RUN COACH ANALYSIS"):
+            if "GOOGLE_API_KEY" in st.secrets:
+                with st.spinner("Coach is studying..."):
+                    genai.configure(api_key=st.secrets["GOOGLE_API_KEY"])
+                    # FIXED MODEL NAME
+                    model = genai.GenerativeModel('gemini-1.5-flash')
+                    prompt = "You are the ScrivShady Coach. Provide a short, aggressive tactical analysis of this PGN:"
+                    response = model.generate_content(f"{prompt}\n\n{st.session_state.current_pgn}")
+                    st.session_state.analysis = response.text
+            else:
+                st.error("Missing Google API Key in Secrets!")
+
+        if st.session_state.analysis:
+            st.markdown(st.session_state.analysis)
+
+        # Chess Board Display Logic
+        game = chess.pgn.read_game(io.StringIO(st.session_state.current_pgn))
+        if game:
+            moves = list(game.mainline_moves())
+            board = game.board()
+            for i in range(st.session_state.move_index): 
+                board.push(moves[i])
+            
+            st.markdown(render_board(board), unsafe_allow_html=True)
+            
+            col1, col2, col3 = st.columns([1,1,1])
+            with col1:
+                if st.button("⬅️ PREV") and st.session_state.move_index > 0:
+                    st.session_state.move_index -= 1
+                    st.rerun()
+            with col2: 
+                st.write(f"<center>Move {st.session_state.move_index}/{len(moves)}</center>", unsafe_allow_html=True)
+            with col3:
+                if st.button("NEXT ➡️") and st.session_state.move_index < len(moves):
+                    st.session_state.move_index += 1
+                    st.rerun()
+    else:
+        st.info("👈 Fetch history in the sidebar to get started.")
+
+elif page == "📊 Stats":
+    st.title("📊 Performance History")
+    try:
+        conn = st.connection("gsheets", type=GSheetsConnection)
+        df = conn.read(spreadsheet=st.secrets["GSHEET_URL"])
+        st.line_chart(df, color="#D4AF37")
+    except:
+        st.warning("Google Sheet not connected. Check your Secrets and Share settings.")
             urls = res.json().get('archives', [])
             for url in urls[-6:]: # Fetches last 6 months for balance of speed/history
                 month_data = requests.get(url, headers=headers).json()
